@@ -23,5 +23,35 @@ public class PedidosController : ControllerBase
     [HttpGet]
     public IActionResult GetAll() => Ok(_pedidos);
 
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] Pedido pedido)
+    {
+        if (pedido == null)
+        {
+            return BadRequest("El pedido no puede ser nulo.");
+        }
+
+        pedido.Id = _siguienteId++;
+        pedido.Fecha = DateTime.UtcNow;
+        _pedidos.Add(pedido);
+
+        try
+        {
+            var client = _httpClientFactory.CreateClient("Notificaciones");
+            await client.PostAsJsonAsync("/api/notificaciones", new
+            {
+               PedidoId = pedido.Id,
+               Cliente = pedido.Cliente,
+               Mensaje = $"Tu pedido fue recibido" 
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "No se pudo enviar la notificación para el pedido");
+        }
+        return CreatedAtAction(nameof(GetAll), new { id = pedido.Id }, pedido);
+        }
+    }
+
 }
 
